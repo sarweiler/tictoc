@@ -10,6 +10,8 @@
 #define OLED_RESET  14
 Adafruit_SSD1306 display(OLED_D1, OLED_D0, OLED_DC, OLED_RESET, OLED_CS);
 
+#define CLOCK_IN    18
+
 #define NUMFLAKES 10
 #define XPOS 0
 #define YPOS 1
@@ -70,8 +72,22 @@ void updateCol(int colNum) {
   activeSteps[colNum] -= 1;
 }
 
+void onClockReceived() {
+  updateCol(0);
+  updateCol(1);
+  updateCol(2);
+  updateCol(3);
+  fireTriggers();
+  resetTriggers();
+  display.display();
+  Serial.println("CLOCK IN");
+}
+
 void setup()   {
   Serial.begin(9600);
+
+  pinMode(CLOCK_IN, INPUT);
+  attachInterrupt(CLOCK_IN, onClockReceived, RISING);
 
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
   display.begin(SSD1306_SWITCHCAPVCC);
@@ -89,6 +105,7 @@ void setup()   {
 }
 
 void loop() {
+  /*
   updateCol(0);
   updateCol(1);
   updateCol(2);
@@ -98,4 +115,5 @@ void loop() {
 
   display.display();
   delay(500);
+  */
 }
