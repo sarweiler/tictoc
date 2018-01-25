@@ -3,6 +3,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include <math.h>
+
 #include <main.h>
 
 #define OLED_D1     11 // MOSI
@@ -24,7 +26,8 @@ Adafruit_SSD1306 display(OLED_D1, OLED_D0, OLED_DC, OLED_RESET, OLED_CS);
 #define LOGO16_GLCD_HEIGHT 16
 #define LOGO16_GLCD_WIDTH  16
 
-#define STEP_HEIGHT 6
+#define MAX_STEPS 8
+#define STEP_HEIGHT 12
 #define COL_NUM 4
 #define COL_WIDTH 16
 
@@ -50,7 +53,7 @@ void activateTrigger(int colNum) {
 }
 
 void fireTriggers() {
-  //Serial.println("triggering: " + String(activeTriggers[0]) + String(activeTriggers[1]) + String(activeTriggers[2]) + String(activeTriggers[3]));
+  Serial.println("triggering: " + String(activeTriggers[0]) + String(activeTriggers[1]) + String(activeTriggers[2]) + String(activeTriggers[3]));
 }
 
 void resetTriggers() {
@@ -71,21 +74,19 @@ void initCol(int colNum, int height) {
 }
 
 void updateCol(int colNum) {
-  if(!isInEditMode(colNum)) {
-    int x = activeSteps[colNum] * STEP_HEIGHT;
-    int y = colNum * COL_WIDTH;
-    display.fillRect(x, y, STEP_HEIGHT - 2, 14, 0);
-    display.drawRect(x, y, STEP_HEIGHT - 2, 14, 1);
+  int x = activeSteps[colNum] * STEP_HEIGHT;
+  int y = colNum * COL_WIDTH;
+  display.fillRect(x, y, STEP_HEIGHT - 2, 14, 0);
+  display.drawRect(x, y, STEP_HEIGHT - 2, 14, 1);
 
-    if(activeSteps[colNum] == 0) {
-      activeSteps[colNum] = colHeights[colNum] + 1;
-      activateTrigger(colTriggerTargets[colNum]);
-    }
-
-    int new_x = (activeSteps[colNum] - 1) * STEP_HEIGHT;
-    display.fillRect(new_x, y, STEP_HEIGHT - 2, 14, 1);
-    activeSteps[colNum] -= 1;
+  if(activeSteps[colNum] == 0) {
+    activeSteps[colNum] = colHeights[colNum] + 1;
+    activateTrigger(colTriggerTargets[colNum]);
   }
+
+  int new_x = (activeSteps[colNum] - 1) * STEP_HEIGHT;
+  display.fillRect(new_x, y, STEP_HEIGHT - 2, 14, 1);
+  activeSteps[colNum] -= 1;
 }
 
 void blankCol(int colNum) {
@@ -96,14 +97,33 @@ void blankCol(int colNum) {
 
 void drawEmptyCol(uint8_t colNum, uint8_t height) {
   int y = colNum * COL_WIDTH;
-  for(int i=0; i < height; i++) {
+  for(int i=0; i <= height; i++) {
       int x = i * STEP_HEIGHT;
-      display.drawRect(x, y, 14, 14, 1);
+      display.drawRect(x, y, STEP_HEIGHT - 2, 14, 1);
+  }
+  for(int i=height + 1; i < MAX_STEPS; i++) {
+      int x = i * STEP_HEIGHT;
+      display.drawRect(x, y, STEP_HEIGHT - 2, 14, 0);
   }
 }
 
 boolean isInEditMode(int colNum) {
   return colEditable[colNum];
+}
+
+void updateEditMode() {
+  for(int i=0; i < COL_NUM; i++) {
+    int y = i * COL_WIDTH;
+    if(isInEditMode(i)) {
+      //Serial.println("EDIT MODE: " + String(i));
+      int editColHeight = floor(analogRead(POT1_IN) / (1024 / MAX_STEPS));
+      colHeights[i] = editColHeight;
+      display.drawLine(DISPLAY_WIDTH - 2, y, DISPLAY_WIDTH - 2, y + COL_WIDTH, 1);
+      drawEmptyCol(i, editColHeight);
+    } else {
+      display.drawLine(DISPLAY_WIDTH - 2, y, DISPLAY_WIDTH - 2, y + COL_WIDTH, 0);
+    }
+  }
 }
 
 void onClockReceived() {
@@ -113,8 +133,7 @@ void onClockReceived() {
   updateCol(3);
   fireTriggers();
   resetTriggers();
-  display.display();
-  Serial.println("CLOCK IN");
+  //Serial.println("CLOCK IN");
 }
 
 void onButton1Pressed() {
@@ -122,7 +141,7 @@ void onButton1Pressed() {
 
   Serial.println("BUTTON 1 pressed");
   colEditable[colNum] = !colEditable[colNum];
-  blankCol(colNum);
+  //blankCol(colNum);
 }
 
 void setup()   {
@@ -151,7 +170,7 @@ void setup()   {
 }
 
 void loop() {
-  int internalClockInterval = analogRead(POT1_IN);
+  //int internalClockInterval = analogRead(POT1_IN);
 
   unsigned int currTimestampClock = millis();
   if(currTimestampClock - prevTimestampClock >= internalClockInterval) {
@@ -159,9 +178,13 @@ void loop() {
     prevTimestampClock = currTimestampClock;
   }
 
+  updateEditMode();
+  /*
   unsigned int currTimestampEditMode = millis();
   if(currTimestampEditMode - prevTimestampEditMode >= editBlinkInterval) {
-    //onClockReceived();
+    updateEditMode();
     prevTimestampEditMode = currTimestampEditMode;
   }
+  */
+  display.display();
 }
