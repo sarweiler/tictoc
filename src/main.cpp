@@ -24,7 +24,7 @@ Adafruit_SSD1306 display(OLED_D1, OLED_D0, OLED_DC, OLED_RESET, OLED_CS);
 #define LOGO16_GLCD_HEIGHT 16
 #define LOGO16_GLCD_WIDTH  16
 
-#define STEP_HEIGHT 16
+#define STEP_HEIGHT 6
 #define COL_NUM 4
 #define COL_WIDTH 16
 
@@ -32,6 +32,12 @@ Adafruit_SSD1306 display(OLED_D1, OLED_D0, OLED_DC, OLED_RESET, OLED_CS);
 #define DISPLAY_WIDTH 128
 
 #define SSD1306_LCDHEIGHT 64
+
+unsigned int internalClockInterval = 500;
+unsigned int prevTimestampClock = 0;
+
+unsigned int editBlinkInterval = 250;
+unsigned int prevTimestampEditMode = 0;
 
 int activeSteps[COL_NUM] = {0, 0, 0, 0};
 boolean activeTriggers[COL_NUM] = {false, false, false, false};
@@ -57,9 +63,9 @@ void initCol(int colNum, int height) {
   int y = colNum * COL_WIDTH;
   for(int i=0; i < height; i++) {
       int x = i * STEP_HEIGHT;
-      display.drawRect(x, y, 14, 14, 1);
+      display.drawRect(x, y, STEP_HEIGHT - 2, 14, 1);
   }
-  display.fillRect(height * STEP_HEIGHT, y, 14, 14, 1);
+  display.fillRect(height * STEP_HEIGHT, y, STEP_HEIGHT - 2, 14, 1);
   activeSteps[colNum] = height;
   colHeights[colNum] = height;
 }
@@ -68,8 +74,8 @@ void updateCol(int colNum) {
   if(!isInEditMode(colNum)) {
     int x = activeSteps[colNum] * STEP_HEIGHT;
     int y = colNum * COL_WIDTH;
-    display.fillRect(x, y, 14, 14, 0);
-    display.drawRect(x, y, 14, 14, 1);
+    display.fillRect(x, y, STEP_HEIGHT - 2, 14, 0);
+    display.drawRect(x, y, STEP_HEIGHT - 2, 14, 1);
 
     if(activeSteps[colNum] == 0) {
       activeSteps[colNum] = colHeights[colNum] + 1;
@@ -77,7 +83,7 @@ void updateCol(int colNum) {
     }
 
     int new_x = (activeSteps[colNum] - 1) * STEP_HEIGHT;
-    display.fillRect(new_x, y, 14, 14, 1);
+    display.fillRect(new_x, y, STEP_HEIGHT - 2, 14, 1);
     activeSteps[colNum] -= 1;
   }
 }
@@ -145,9 +151,17 @@ void setup()   {
 }
 
 void loop() {
-  int pot1_val = analogRead(POT1_IN);
-  Serial.println(pot1_val);
+  int internalClockInterval = analogRead(POT1_IN);
 
-  onClockReceived();
-  delay(pot1_val);
+  unsigned int currTimestampClock = millis();
+  if(currTimestampClock - prevTimestampClock >= internalClockInterval) {
+    onClockReceived();
+    prevTimestampClock = currTimestampClock;
+  }
+
+  unsigned int currTimestampEditMode = millis();
+  if(currTimestampEditMode - prevTimestampEditMode >= editBlinkInterval) {
+    //onClockReceived();
+    prevTimestampEditMode = currTimestampEditMode;
+  }
 }
